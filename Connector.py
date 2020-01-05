@@ -272,5 +272,5 @@ while True:
         value = datetime.datetime.fromtimestamp(timestamp)
         crashed_time = value.strftime('%Y-%m-%d %H:%M:%S')
         print("Crashed at '{}'... Restarting".format(crashed_time))
-        notify("Crashed at '{}'... Restarting".format(crashed_time))
+        notify("Crashed at '{}'... Restarting".format(crashed_time), crashed=True)
         time.sleep(10)
