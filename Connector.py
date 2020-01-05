@@ -265,12 +265,14 @@ while True:
             check_old_songs()
             check_old_songs_count = 0
         time.sleep(2)
-    except Exception:
+    except Exception as err:
         import datetime
+        import traceback
 
         timestamp = time.time()
         value = datetime.datetime.fromtimestamp(timestamp)
         crashed_time = value.strftime('%Y-%m-%d %H:%M:%S')
+        traceback.print_exc()
         print("Crashed at '{}'... Restarting".format(crashed_time))
         notify("Crashed at '{}'... Restarting".format(crashed_time), crashed=True)
         time.sleep(10)
