@@ -168,7 +168,7 @@ def save_to_db(song_key, song_name, song_timestamp):
             gdrive = GDrive()
             gdrive.upload(song_key, song_name, file_path)
         else:
-            print("File for song {} was less than 5 KB, therefore not uploading song")
+            print("File for song {} was less than 5 KB, therefore not uploading song".format(song_name))
         delete_file(file_path)
         print("Song {} deleted from temp storage".format(song_name))
         notify(song_name)
