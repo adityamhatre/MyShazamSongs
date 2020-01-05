@@ -1,15 +1,17 @@
 import base64
 import json
-from datetime import datetime
 import time
-import requests
 import uuid
-from GDrive import GDrive, notify
+from datetime import datetime
+from GDrive import GDrive
+from GDrive import notify
+import requests
 
 
 def download_file(name, link):
     r = requests.get(link)
     file_path = "{}.mp3".format(name)
+    file_path = file_path.replace("/", "_")
     with open(file_path, "wb") as f:
         f.write(r.content)
     return file_path
@@ -48,8 +50,8 @@ def get_db():
 
     database = mysql.connector.connect(
         host="localhost",
-        user="localdbuser",
-        password="localdbpassword",
+        user="user",
+        password="pwd",
         auth_plugin='mysql_native_password',
         database='shazam'
     )
@@ -170,10 +172,14 @@ def get_song_list_from_shazam(upto_timestamp=None):
     song_keys = set()
     token = ""
     random_uuid = str(uuid.uuid4())
+
+    found = True  # change this to false when blocked on some song
+
     while True:
         if i == 0:
             # tagId is random uuid, backup=9c26cc1d-a28f-470f-90b0-161a8d04e886
-            token = '{"accountId": {"s": "accountID"},' \
+
+            token = '{"accountId": {"s": "accountid"},' \
                     '"tagId": {"s": "' + random_uuid + '"},' '"timestamp": {"n": "' \
                     + str(int(datetime.timestamp(datetime.now()))) + '000"}}'
             token = str(token).encode("utf-8")
@@ -208,20 +214,28 @@ def get_song_list_from_shazam(upto_timestamp=None):
         tags = j["tags"]
         breakout = False
         for x in tags:
+            stuck_song_id = -1  # get id from mac intellij db
+            if not found and x['track']['key'] == str(stuck_song_id):
+                found = True
+
+            if not found:
+                continue
+
             if x['track']['key'] not in song_keys:
+
                 key = x['track']['key']
                 name = x["track"]["heading"]["title"] + " - " + x["track"]["heading"]["subtitle"]
-                timestamp = x['timestamp']
+                ts = x['timestamp']
 
-                if upto_timestamp and str(timestamp) <= upto_timestamp:
+                if upto_timestamp and str(ts) <= str(upto_timestamp):
                     breakout = True
                     break
                 already_exists = check_already_exists(key)
                 if already_exists:
                     print("Song {} already exists, updating timestamp".format(name))
-                    update_timestamp(key, timestamp)
+                    update_timestamp(key, ts)
                     if not already_exists[3]:
-                        print("Song {} does not have link. Trying to find downloadable link...")
+                        print("Song {} does not have link. Trying to find downloadable link...".format(name))
                         update_song_link(key, name)
                     continue
 
@@ -230,7 +244,7 @@ def get_song_list_from_shazam(upto_timestamp=None):
 
                 save_to_db(song_key=key,
                            song_name=name,
-                           song_timestamp=timestamp)
+                           song_timestamp=ts)
                 print("Added {} to DB".format(name))
         i = 1
         if 'token' not in j:
@@ -244,16 +258,14 @@ def get_song_list_from_shazam(upto_timestamp=None):
 def check_new():
     query = 'select time from song_list order by time desc limit 1'
     res = execute_query(query, fetch_one=True)
+
+    # change the arg to None when continuing
+    # return get_song_list_from_shazam(None)
     return get_song_list_from_shazam(upto_timestamp=res[0] if res else None)
 
 
-#
-
-
-#
 check_old_songs_count = 0
 check_old_songs_interval = 30
-# notify("lol")
 while True:
     try:
         print("Polling... ", end='')
@@ -266,13 +278,10 @@ while True:
             check_old_songs_count = 0
         time.sleep(2)
     except Exception as err:
-        import datetime
         import traceback
 
-        timestamp = time.time()
-        value = datetime.datetime.fromtimestamp(timestamp)
-        crashed_time = value.strftime('%Y-%m-%d %H:%M:%S')
         traceback.print_exc()
-        print("Crashed at '{}'... Restarting".format(crashed_time))
-        notify("Crashed at '{}'... Restarting".format(crashed_time), crashed=True)
+        msg = "Crashed ... Restarting"
+        print(msg)
+        notify(msg, crashed=True)
         time.sleep(10)

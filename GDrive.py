@@ -20,7 +20,8 @@ def notify(name, crashed=False):
     result = push_service.notify_single_device(registration_id=registration_id, message_title=message_title,
                                                message_body=message_body)
     if result['success'] == 1:
-        print("Notification sent for song {}".format(name) if not crashed else "Crash notification sent")
+        print("Notification sent for song {}".format(
+            name) if not crashed else "Crash notification sent with msg = {}".format(name))
 
 
 class GDrive:
