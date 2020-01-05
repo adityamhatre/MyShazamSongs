@@ -150,6 +150,12 @@ def check_old_songs():
         update_song_link(r[0], r[1])
 
 
+def filesize(file_path):
+    import os
+    statinfo = os.stat(file_path)
+    return statinfo.st_size
+
+
 def save_to_db(song_key, song_name, song_timestamp):
     query = 'insert into song_list values(%s, %s, %s,%s, %s)'
     values = (song_key, song_name, song_timestamp, False, None)
@@ -157,9 +163,12 @@ def save_to_db(song_key, song_name, song_timestamp):
     link = update_song_link(song_key, song_name)
     if link:
         file_path = download_file(song_name, link)
-        print("Uploading song {} to drive".format(song_name))
-        gdrive = GDrive()
-        gdrive.upload(song_key, song_name, file_path)
+        if filesize(file_path) > 5 * 1024:
+            print("Uploading song {} to drive".format(song_name))
+            gdrive = GDrive()
+            gdrive.upload(song_key, song_name, file_path)
+        else:
+            print("File for song {} was less than 5 KB, therefore not uploading song")
         delete_file(file_path)
         print("Song {} deleted from temp storage".format(song_name))
         notify(song_name)
