@@ -34,6 +34,11 @@ def get_pretty_id(t):
     e = ""
     if t == 0:
         return u[0]
+
+    if t < 0:
+        t *= -1
+        e += "-"
+
     while True:
         val = int(t % length)
         t = int(t / length)
@@ -147,7 +152,9 @@ def check_old_songs():
     query = 'select * from song_list where link_found = false'
     res = execute_query(query)
     for r in res:
-        update_song_link(r[0], r[1])
+        link = update_song_link(r[0], r[1])
+        if link:
+            download_and_upload(r[0], r[1], link)
 
 
 def filesize(file_path):
@@ -156,22 +163,26 @@ def filesize(file_path):
     return statinfo.st_size
 
 
+def download_and_upload(song_key, song_name, link):
+    file_path = download_file(song_name, link)
+    if filesize(file_path) > 5 * 1024:
+        print("Uploading song {} to drive".format(song_name))
+        gdrive = GDrive()
+        gdrive.upload(song_key, song_name, file_path)
+    else:
+        print("File for song {} was less than 5 KB, therefore not uploading song".format(song_name))
+    delete_file(file_path)
+    print("Song {} deleted from temp storage".format(song_name))
+    notify(song_name)
+
+
 def save_to_db(song_key, song_name, song_timestamp):
     query = 'insert into song_list values(%s, %s, %s,%s, %s)'
     values = (song_key, song_name, song_timestamp, False, None)
     execute_query(query, values)
     link = update_song_link(song_key, song_name)
     if link:
-        file_path = download_file(song_name, link)
-        if filesize(file_path) > 5 * 1024:
-            print("Uploading song {} to drive".format(song_name))
-            gdrive = GDrive()
-            gdrive.upload(song_key, song_name, file_path)
-        else:
-            print("File for song {} was less than 5 KB, therefore not uploading song".format(song_name))
-        delete_file(file_path)
-        print("Song {} deleted from temp storage".format(song_name))
-        notify(song_name)
+        download_and_upload(song_key, song_name, link)
 
 
 def get_song_list_from_shazam(upto_timestamp=None):
@@ -182,7 +193,7 @@ def get_song_list_from_shazam(upto_timestamp=None):
     token = ""
     random_uuid = str(uuid.uuid4())
 
-    found = True  # change this to false when blocked on some song
+    found = False  # change this to false when blocked on some song
 
     while True:
         if i == 0:
@@ -223,8 +234,8 @@ def get_song_list_from_shazam(upto_timestamp=None):
         tags = j["tags"]
         breakout = False
         for x in tags:
-            stuck_song_id = -1  # get id from mac intellij db
-            if not found and x['track']['key'] == str(stuck_song_id):
+            stuck_song_key = -1  # get id from mac intellij db
+            if not found and x['track']['key'] == str(stuck_song_key):
                 found = True
 
             if not found:
@@ -275,22 +286,25 @@ def check_new():
 
 check_old_songs_count = 0
 check_old_songs_interval = 30
+poll_interval = 10
 while True:
     try:
         print("Polling... ", end='')
         added = check_new()
         print("{} songs added".format(len(added)))
         check_old_songs_count += 1
-        if check_old_songs == check_old_songs_interval:
+        if check_old_songs_count == check_old_songs_interval:
             print("Checking old songs for new links...")
             check_old_songs()
             check_old_songs_count = 0
-        time.sleep(2)
+        print("Waiting for 10 seconds before polling...")
+        time.sleep(poll_interval)
     except Exception as err:
         import traceback
 
         traceback.print_exc()
-        msg = "Crashed ... Restarting"
+        msg = "Crashed ... Restarting in 10 seconds"
+        check_old_songs_count = 0
         print(msg)
         notify(msg, crashed=True)
         time.sleep(10)
