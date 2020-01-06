@@ -237,7 +237,7 @@ def get_song_list_from_shazam(upto_timestamp=None):
             # stuck_song_key = -1  # get id from mac intellij db
             # if not found and x['track']['key'] == str(stuck_song_key):
             #     found = True
-            #
+
             # if not found:
             #     continue
 
@@ -285,7 +285,9 @@ def check_new():
 
 
 check_old_songs_count = 0
+delete_log_file_count = 0
 check_old_songs_interval = 30
+delete_log_file_interval = 50
 poll_interval = 10
 while True:
     try:
@@ -297,6 +299,10 @@ while True:
             print("Checking old songs for new links...")
             check_old_songs()
             check_old_songs_count = 0
+        if delete_log_file_count == delete_log_file_interval:
+            print("Resetting log file...")
+            delete_file("outfile.log")
+            delete_log_file_count = 0
         print("Waiting for 10 seconds before polling...")
         time.sleep(poll_interval)
     except Exception as err:

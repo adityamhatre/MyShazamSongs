@@ -43,7 +43,7 @@ class GDrive:
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                notify("Login again", crashed=True)
+                # notify("Login again", crashed=True)
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
