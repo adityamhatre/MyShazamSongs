@@ -193,7 +193,7 @@ def get_song_list_from_shazam(upto_timestamp=None):
     token = ""
     random_uuid = str(uuid.uuid4())
 
-    found = False  # change this to false when blocked on some song
+    # found = False  # change this to false when blocked on some song
 
     while True:
         if i == 0:
@@ -234,12 +234,12 @@ def get_song_list_from_shazam(upto_timestamp=None):
         tags = j["tags"]
         breakout = False
         for x in tags:
-            stuck_song_key = -1  # get id from mac intellij db
-            if not found and x['track']['key'] == str(stuck_song_key):
-                found = True
-
-            if not found:
-                continue
+            # stuck_song_key = -1  # get id from mac intellij db
+            # if not found and x['track']['key'] == str(stuck_song_key):
+            #     found = True
+            #
+            # if not found:
+            #     continue
 
             if x['track']['key'] not in song_keys:
 

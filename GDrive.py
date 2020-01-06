@@ -15,7 +15,7 @@ def notify(name, crashed=False):
     push_service = FCMNotification(api_key="api_key")
     registration_id = "device_registration_token"
     message_title = "Song downloaded!" if not crashed else "Program crashed"
-    message_body = "Your song {} is ready in Google Drive (my.shazam.songs@gmail.com)".format(
+    message_body = "Your song \"{}\" is ready in Google Drive (my.shazam.songs@gmail.com)".format(
         name) if not crashed else name
     result = push_service.notify_single_device(registration_id=registration_id, message_title=message_title,
                                                message_body=message_body)
