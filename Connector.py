@@ -295,6 +295,7 @@ while True:
         added = check_new()
         print("{} songs added".format(len(added)))
         check_old_songs_count += 1
+        delete_log_file_count += 1
         if check_old_songs_count == check_old_songs_interval:
             print("Checking old songs for new links...")
             check_old_songs()
