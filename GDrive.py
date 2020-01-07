@@ -9,14 +9,17 @@ from googleapiclient.http import MediaFileUpload
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 
-def notify(name, crashed=False):
+def notify(name, crashed=False, custom_text=False):
     from pyfcm import FCMNotification
 
     push_service = FCMNotification(api_key="api_key")
     registration_id = "device_registration_token"
     message_title = "Song downloaded!" if not crashed else "Program crashed"
-    message_body = "Your song \"{}\" is ready in Google Drive (my.shazam.songs@gmail.com)".format(
-        name) if not crashed else name
+    if not custom_text:
+        message_body = "Your song \"{}\" is ready in Google Drive (my.shazam.songs@gmail.com)".format(
+            name) if not crashed else name
+    else:
+        message_body = name
     result = push_service.notify_single_device(registration_id=registration_id, message_title=message_title,
                                                message_body=message_body)
     if result['success'] == 1:

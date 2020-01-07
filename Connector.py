@@ -253,6 +253,7 @@ def get_song_list_from_shazam(upto_timestamp=None):
                 already_exists = check_already_exists(key)
                 if already_exists:
                     print("Song {} already exists, updating timestamp".format(name))
+                    notify("Song {} already downloaded!".format(name), custom_text=True)
                     update_timestamp(key, ts)
                     if not already_exists[3]:
                         print("Song {} does not have link. Trying to find downloadable link...".format(name))
@@ -302,7 +303,7 @@ while True:
             check_old_songs_count = 0
         if delete_log_file_count == delete_log_file_interval:
             print("Resetting log file...")
-            delete_file("outfile.log")
+            open('outfile.log', "w").close()
             delete_log_file_count = 0
         print("Waiting for 10 seconds before polling...")
         time.sleep(poll_interval)
