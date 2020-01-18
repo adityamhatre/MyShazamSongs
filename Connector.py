@@ -2,10 +2,13 @@ import base64
 import json
 import time
 import uuid
-from datetime import datetime
+
+import requests
+
 from GDrive import GDrive
 from GDrive import notify
-import requests
+
+from Logger import info, error
 
 
 def download_file(name, link):
@@ -22,7 +25,7 @@ def delete_file(file_path):
     if os.path.exists(file_path):
         os.remove(file_path)
     else:
-        print("The file '{}' does not exist".format(file_path))
+        info("The file '{}' does not exist".format(file_path))
 
 
 def get_pretty_id(t):
@@ -136,15 +139,17 @@ def search_by_name(name):
     return link
 
 
-def update_song_link(song_key, song_name):
+def update_song_link(song_key, song_name, old=False):
     link = search_by_name(song_name)
     if link != -1:
         query = 'update song_list set link_found = true, link = \'{}\' where id = {}'.format(link, song_key)
         execute_query(query)
-        print("\nLink for song {} found".format(song_name))
+        info("Link for song {} found".format(song_name))
         return link
     else:
-        print("\nLink for song {} not found".format(song_name))
+        if not old:
+            notify("Link for song {} not found".format(song_name), customText=True)
+        info("Link for song {} not found".format(song_name))
     return None
 
 
@@ -152,7 +157,7 @@ def check_old_songs():
     query = 'select * from song_list where link_found = false'
     res = execute_query(query)
     for r in res:
-        link = update_song_link(r[0], r[1])
+        link = update_song_link(r[0], r[1], old=True)
         if link:
             download_and_upload(r[0], r[1], link)
 
@@ -166,23 +171,23 @@ def filesize(file_path):
 def download_and_upload(song_key, song_name, link):
     file_path = download_file(song_name, link)
     if filesize(file_path) > 5 * 1024:
-        print("Uploading song {} to drive".format(song_name))
-        gdrive = GDrive()
-        gdrive.upload(song_key, song_name, file_path)
+        info("Uploading song {} to drive".format(song_name))
+        GDrive().upload(song_key, song_name, file_path)
     else:
-        print("File for song {} was less than 5 KB, therefore not uploading song".format(song_name))
+        info("File for song {} was less than 5 KB, therefore not uploading song".format(song_name))
     delete_file(file_path)
-    print("Song {} deleted from temp storage".format(song_name))
+    info("Song {} deleted from temp storage".format(song_name))
     notify(song_name)
 
 
 def save_to_db(song_key, song_name, song_timestamp):
     query = 'insert into song_list values(%s, %s, %s,%s, %s)'
     values = (song_key, song_name, song_timestamp, False, None)
-    execute_query(query, values)
     link = update_song_link(song_key, song_name)
     if link:
         download_and_upload(song_key, song_name, link)
+        values = (song_key, song_name, song_timestamp, True, link)
+    execute_query(query, values)
 
 
 def get_song_list_from_shazam(upto_timestamp=None):
@@ -201,9 +206,11 @@ def get_song_list_from_shazam(upto_timestamp=None):
 
             token = '{"accountId": {"s": "accountid"},' \
                     '"tagId": {"s": "' + random_uuid + '"},' '"timestamp": {"n": "' \
-                    + str(int(datetime.timestamp(datetime.now()))) + '000"}}'
+                    + str(int(str(time.time()).split('.')[0] + '000')) + '"}}'
+            # print(token)
             token = str(token).encode("utf-8")
             token = str(base64.b64encode(token))[2:-1]
+
         querystring = {"limit": "100", "token": token}
 
         headers = {
@@ -228,8 +235,11 @@ def get_song_list_from_shazam(upto_timestamp=None):
         }
 
         response = requests.get(url, headers=headers, params=querystring)
+        # print(response)
         if not response.text:
+            # print("returning")
             return song_names
+        # print(response.text)
         j = json.loads(response.text)
         tags = j["tags"]
         breakout = False
@@ -248,15 +258,16 @@ def get_song_list_from_shazam(upto_timestamp=None):
                 ts = x['timestamp']
 
                 if upto_timestamp and str(ts) <= str(upto_timestamp):
+                    # print("Breaking from the loop, not paging")
                     breakout = True
                     break
                 already_exists = check_already_exists(key)
                 if already_exists:
-                    print("Song {} already exists, updating timestamp".format(name))
-                    notify("Song {} already downloaded!".format(name), custom_text=True)
+                    info("Song {} already exists, updating timestamp".format(name))
+                    notify("Song {} already downloaded!".format(name), customText=True)
                     update_timestamp(key, ts)
                     if not already_exists[3]:
-                        print("Song {} does not have link. Trying to find downloadable link...".format(name))
+                        info("Song {} does not have link. Trying to find downloadable link...".format(name))
                         update_song_link(key, name)
                     continue
 
@@ -266,7 +277,7 @@ def get_song_list_from_shazam(upto_timestamp=None):
                 save_to_db(song_key=key,
                            song_name=name,
                            song_timestamp=ts)
-                print("Added {} to DB".format(name))
+                info("Added {} to DB".format(name))
         i = 1
         if 'token' not in j:
             break
@@ -287,32 +298,42 @@ def check_new():
 
 check_old_songs_count = 0
 delete_log_file_count = 0
+
 check_old_songs_interval = 30
 delete_log_file_interval = 50
+
 poll_interval = 10
 while True:
     try:
-        print("Polling... ", end='')
+        info("Polling... ")
         added = check_new()
-        print("{} songs added".format(len(added)))
+        info("{} songs added".format(len(added)))
         check_old_songs_count += 1
         delete_log_file_count += 1
+
         if check_old_songs_count == check_old_songs_interval:
-            print("Checking old songs for new links...")
+            info("Checking old songs for new links...")
             check_old_songs()
             check_old_songs_count = 0
+
         if delete_log_file_count == delete_log_file_interval:
-            print("Resetting log file...")
-            open('outfile.log', "w").close()
+            info("Resetting log file...")
+            time.sleep(0.5)
             delete_log_file_count = 0
-        print("Waiting for 10 seconds before polling...")
+
+        info("Waiting for 10 seconds before polling...")
         time.sleep(poll_interval)
     except Exception as err:
         import traceback
 
         traceback.print_exc()
+        stacktrace = traceback.format_exc()
+
+        error(stacktrace)
         msg = "Crashed ... Restarting in 10 seconds"
         check_old_songs_count = 0
+        delete_log_file_count = 0
         print(msg)
-        notify(msg, crashed=True)
+        # if not stacktrace.__contains__("Temporary failure in name resolution"):
+        # notify(msg, crashed=True)
         time.sleep(10)
