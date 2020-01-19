@@ -1,15 +1,21 @@
+import sys
 import datetime
 import time
 
 _info = 0
 _error = 0
 
+try:
+    APP_HOME = sys.argv[1]
+except IndexError:
+    APP_HOME = '/home/aditya/MyShazamSongs'
 
 def error(message):
     global _error
+    global APP_HOME
     print(message,"lol")
     info("Some error occurred")
-    with open("error.html", "a") as err_file:
+    with open(APP_HOME + "/error.html", "a") as err_file:
         if _error == 0:
             _error = 1
             err_file.write('<meta http-equiv="refresh" content="2">\n\n\n<br>')
@@ -21,12 +27,13 @@ def error(message):
         err_file.write(message)
         err_file.write("\t\t\t<br><br><br>\n")
 
-    delete("error.html", days=30)
+    delete(APP_HOME + "/error.html", days=30)
 
 
 def info(message):
     global _info
-    with open("info.html", "a") as info_file:
+    global APP_HOME
+    with open(APP_HOME + "/info.html", "a") as info_file:
         if _info == 0:
             _info = 1
             info_file.write('<meta http-equiv="refresh" content="2">\n\n\n<br>')
@@ -38,7 +45,7 @@ def info(message):
         info_file.write(message)
         info_file.write("\t\t\t\t\t\t<br>\n")
 
-    delete("info.html", days=7)
+    delete(APP_HOME + "/info.html", days=7)
 
 
 def delete(file, days):
